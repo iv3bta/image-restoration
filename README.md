@@ -10,13 +10,33 @@ Old and damaged photographs often show several defects at once: noise, scratches
 
 Analysis of similar articles / applications / projects from the last 5 years.
 
-| No. | Author(s) / Year | Title of the article / project | Application / Domain | Technologies used | Methodology / Approach | Results | Limitations | Additional comments |
-|-----|------------------|--------------------------------|----------------------|-------------------|------------------------|---------|-------------|---------------------|
-| 1 | [Zamir et al., 2022](https://arxiv.org/abs/2111.09881) | Restormer: Efficient Transformer for High-Resolution Image Restoration (CVPR 2022) | General image restoration: Gaussian and real denoising, motion and defocus deblurring, deraining | PyTorch 1.8.1, BasicSR (official repo); GPU not stated in the paper | | Gaussian grayscale denoising σ=25, BSD68: 29.51 dB (single model, Table 4)<br>Real denoising, SIDD: 40.02 dB / SSIM 0.960 (Table 6)<br>Motion deblurring, GoPro: 32.92 dB / SSIM 0.961 (Table 2) | | |
-| 2 | [Potlapalli et al., 2023](https://arxiv.org/abs/2306.13090) | PromptIR: Prompting for All-in-One Blind Image Restoration (NeurIPS 2023) | All-in-one restoration: one model for denoising, deraining and dehazing | PyTorch 1.8.1, Python 3.8, CUDA 11.6 (official repo); GPU not stated in the paper | | All-in-one model, BSD68 σ=25: 31.31 dB / SSIM 0.888 (Table 1)<br>Single-task model, BSD68 σ=25: 31.71 dB / SSIM 0.897 (Table 4) | | |
-| 3 | [Suvorov et al., 2022](https://arxiv.org/abs/2109.07161) | Resolution-robust Large Mask Inpainting with Fourier Convolutions (WACV 2022) | Image inpainting: filling large missing regions given a mask | PyTorch, PyTorch-Lightning, Hydra (Sec. 3); Big LaMa trained on 8× NVIDIA V100 for ~240 h (Sec. 3.4) | | Places 512×512, wide masks: FID 2.21, LPIPS 0.135 (Table 1)<br>CelebA-HQ 256×256, wide masks: FID 6.96, LPIPS 0.098 (Table 1) | | |
-| 4 | [Kuo et al., 2022](https://pmc.ncbi.nlm.nih.gov/articles/PMC9656350/) | Learning-Based Image Damage Area Detection for Old Photo Recovery (Sensors 22(21), 8580) | Old photo restoration: detecting damaged areas (scratches, cracks) before inpainting | NVIDIA 2070 8 GB GPU, Intel i5-2400 CPU; 170 old photos labelled in GIMP; framework not stated | | Damage detection on 18 real test photos: recall 0.911, precision 0.847, F1 0.873 (Table 2)<br>No PSNR/SSIM reported for the restored photos | | |
-| 5 | [Ivanova et al., 2023](https://arxiv.org/abs/2302.10004) | Simulating analogue film damage to analyse and improve artefact restoration on high-resolution scans (Computer Graphics Forum, Eurographics 2023) | Film scan restoration: removing dust and scratches from 4K scans of analogue film | Damage simulator in Python with OpenCV, NumPy, SciPy, scikit-image (official repo); Tesla P100 GPU (Sec. 5.3) | | 44 real 4K scans vs. expert restorations, LaMa with the authors' masks: 39.6 dB / SSIM 0.991 / LPIPS 0.042 (Table 4)<br>Damage segmentation: IoU 0.256, F1 0.408 (Table 3) | | |
+### Overview
+
+| No. | Author(s) / Year | Title | Application / Domain | Technologies used | Results |
+|-----|------------------|-------|----------------------|-------------------|---------|
+| 1 | Zamir et al., 2022 | [Restormer](https://arxiv.org/abs/2111.09881) | Denoising, deblurring | PyTorch | Real noise (SIDD): 40.02 dB; motion blur (GoPro): 32.92 dB PSNR (Tab. 6, 2) |
+| 2 | Potlapalli et al., 2023 | [PromptIR](https://arxiv.org/abs/2306.13090) | All-in-one restoration | PyTorch | BSD68 σ=25: 31.31 dB all-in-one vs. 31.71 dB single-task (Tab. 1, 4) |
+| 3 | Suvorov et al., 2022 | [LaMa](https://arxiv.org/abs/2109.07161) | Inpainting | PyTorch, 8× V100 | FID 2.21, LPIPS 0.135 (lower is better), Places, wide masks (Tab. 1) |
+| 4 | Kuo et al., 2022 | [Old photo damage detection](https://pmc.ncbi.nlm.nih.gov/articles/PMC9656350/) | Scratch detection | NVIDIA 2070 GPU | F1 0.873 vs. 0.831 for Wan et al., 18 real photos (Tab. 2) |
+| 5 | Ivanova et al., 2023 | [Film damage simulation](https://arxiv.org/abs/2302.10004) | Dust & scratch removal | OpenCV, NumPy, P100 GPU | 39.6 dB with LaMa + their masks vs. 28.89 dB Photoshop filter, 44 real scans (Tab. 4) |
+
+### Analysis
+
+| No. | Methodology / Approach | Limitations | Additional comments |
+|-----|------------------------|-------------|---------------------|
+| 1 · Restormer | Encoder-decoder Transformer; attention computed across channels (MDTA) so cost stays manageable on large images, gated feed-forward blocks (GDFN), training on progressively larger patches (Sec. 3) | Needs paired clean/damaged training data and a separately trained model per task; the paper has no limitations discussion (Sec. 5) | Quality reference for my steps 1 and 4: run its pretrained denoising/deblurring models on my σ=25 and motion-blur test images and compare with NL-means (+7.28 dB) and Wiener (+2.35 dB) |
+| 2 · PromptIR | UNet-style Transformer plus prompt blocks that encode the type of degradation, so one network handles noise, rain and haze without being told which one (Sec. 3) | All-in-one costs 0.40 dB against the single-task model on BSD68 σ=25 (Tab. 1 vs. 4); blur, scratches and missing regions are not among its tasks | Supports keeping separate, specialised steps in my pipeline instead of one model for all four defects |
+| 3 · LaMa | Inpainting network with fast Fourier convolutions (image-wide receptive field), a high-receptive-field perceptual loss and large training masks (Sec. 2) | Needs the mask as input, it does not find the damage; struggles with strong perspective distortion (Sec. 5) | Candidate to replace OpenCV TELEA/NS in step 3 for large missing regions; like my pipeline, its quality depends on the mask from step 2 |
+| 4 · Kuo et al. | U-Net with residual dense blocks detects damaged areas; trained on 170 hand-labelled old photos plus synthetic damage; the mask is then passed to existing inpainting methods (Sec. 2, 3.3) | Small test set (18 photos); detection failures shown (Fig. 11, Sec. 3.3); no PSNR/SSIM for the final restored photos; no code released | Same detect-then-inpaint split as my steps 2–3; my top-hat mask reaches only IoU 0.16–0.34 (+9.04 dB vs. +22.62 dB with the true mask), so step 2 is what I improve next |
+| 5 · Ivanova et al. | Statistical model of real film dust and scratches generates synthetic damage; realism checked with a human study; 8 restoration methods compared on 44 real 4K scans with expert restorations (Sec. 3–5) | Film scans, not printed photos; damage segmentation is still weak (IoU 0.256, Tab. 3) | Detect-then-inpaint (LaMa + masks, 39.6 dB) beats a single filter (28.89 dB) on real damage, which supports my mask → inpaint order; their damage generator could replace my random-line scratches |
+
+**References**
+
+1. S. W. Zamir et al., *Restormer: Efficient Transformer for High-Resolution Image Restoration*, CVPR 2022. [arXiv:2111.09881](https://arxiv.org/abs/2111.09881) · [code](https://github.com/swz30/Restormer)
+2. V. Potlapalli et al., *PromptIR: Prompting for All-in-One Blind Image Restoration*, NeurIPS 2023. [arXiv:2306.13090](https://arxiv.org/abs/2306.13090) · [code](https://github.com/va1shn9v/PromptIR)
+3. R. Suvorov et al., *Resolution-robust Large Mask Inpainting with Fourier Convolutions*, WACV 2022. [arXiv:2109.07161](https://arxiv.org/abs/2109.07161) · [code](https://github.com/advimman/lama)
+4. T.-Y. Kuo et al., *Learning-Based Image Damage Area Detection for Old Photo Recovery*, Sensors 22(21), 8580, 2022. [PMC9656350](https://pmc.ncbi.nlm.nih.gov/articles/PMC9656350/)
+5. D. Ivanova et al., *Simulating analogue film damage to analyse and improve artefact restoration on high-resolution scans*, Computer Graphics Forum (Eurographics 2023). [arXiv:2302.10004](https://arxiv.org/abs/2302.10004) · [code](https://github.com/daniela997/FilmDamageSimulator)
 
 - **Application / Domain** – domain in which the described solution is applied (e.g., face recognition, augmented reality).
 - **Technologies used** – technologies / hardware used in the project (e.g., OpenCV, TensorFlow, ZED stereo cameras).
