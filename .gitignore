@@ -1,0 +1,8 @@
+# Ignore everything in the project root...
+/*
+
+# ...except what goes on GitHub
+!/.gitignore
+!/README.md
+!/LICENSE
+!/docs/
