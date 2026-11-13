@@ -9,7 +9,9 @@ from pathlib import Path
 import cv2
 import numpy as np
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
-from skimage.restoration import wiener
+
+from damage import blur, gaussian_noise, holes, motion_psf, salt_pepper, scratches
+from restore import detect_scratches, wiener_restore
 
 SEED = 0
 IMAGES = ["lena512.bmp", "photo.jpg", "ct.jpg", "Fig5.03.jpg"]
@@ -17,69 +19,7 @@ LAB_NOISY = ["Fig5.03_zgomotGaussian.jpg", "Fig5.03_zgomotSarePiper.jpg", "Fig5.
 OUT = Path(__file__).resolve().parent.parent / "results"
 
 
-# ---------- damage ----------
-
-def gaussian_noise(img, rng, sigma=25):
-    noisy = img.astype(np.float64) + rng.normal(0, sigma, img.shape)
-    return np.clip(noisy, 0, 255).astype(np.uint8)
-
-
-def salt_pepper(img, rng, amount=0.05):
-    out = img.copy()
-    r = rng.random(img.shape)
-    out[r < amount / 2] = 0
-    out[r > 1 - amount / 2] = 255
-    return out
-
-
-def motion_psf(length=9):
-    psf = np.zeros((length, length))
-    psf[length // 2, :] = 1  # horizontal motion
-    return psf / psf.sum()
-
-
-def blur(img, rng, psf, sigma=2):
-    blurred = cv2.filter2D(img.astype(np.float64), -1, psf)
-    blurred += rng.normal(0, sigma, img.shape)  # a little sensor noise
-    return np.clip(blurred, 0, 255).astype(np.uint8)
-
-
-def scratches(img, rng, count=15):
-    out, mask = img.copy(), np.zeros_like(img)
-    h, w = img.shape
-    for _ in range(count):
-        p1 = (int(rng.integers(0, w)), int(rng.integers(0, h)))
-        p2 = (int(rng.integers(0, w)), int(rng.integers(0, h)))
-        thick = int(rng.integers(1, 3))
-        cv2.line(out, p1, p2, int(rng.integers(220, 256)), thick)
-        cv2.line(mask, p1, p2, 255, thick)
-    return out, mask
-
-
-def holes(img, rng, count=4):
-    out, mask = img.copy(), np.zeros_like(img)
-    h, w = img.shape
-    for _ in range(count):
-        bw, bh = int(rng.integers(w // 16, w // 8)), int(rng.integers(h // 16, h // 8))
-        x, y = int(rng.integers(0, w - bw)), int(rng.integers(0, h - bh))
-        out[y:y + bh, x:x + bw] = 0
-        mask[y:y + bh, x:x + bw] = 255
-    return out, mask
-
-
-# ---------- restoration ----------
-
-def detect_scratches(img):
-    # bright thin lines survive a white top-hat; small opening removes them
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
-    tophat = cv2.morphologyEx(img, cv2.MORPH_TOPHAT, kernel)
-    _, mask = cv2.threshold(tophat, 40, 255, cv2.THRESH_BINARY)
-    return cv2.dilate(mask, np.ones((3, 3), np.uint8))
-
-
-def wiener_restore(img, psf, balance=0.05):
-    out = wiener(img / 255.0, psf, balance)
-    return np.clip(out * 255, 0, 255).astype(np.uint8)
+# damage functions live in damage.py, restoration steps in restore.py
 
 
 DENOISERS = {
@@ -112,7 +52,7 @@ def run_image(name, clean, rng, rows):
 
     tests["gaussian noise sigma=25"] = (gaussian_noise(clean, rng), DENOISERS)
     tests["salt & pepper 5%"] = (salt_pepper(clean, rng), DENOISERS)
-    tests["motion blur 9px + noise sigma=2"] = (blur(clean, rng, psf), {"Wiener (balance=0.05)": lambda d: wiener_restore(d, psf)})
+    tests["motion blur 9px + noise sigma=2"] = (blur(clean, rng, psf), {"Wiener (balance=0.02, mirrored edges)": lambda d: wiener_restore(d, psf)})
 
     scr, scr_mask = scratches(clean, rng)
     det_mask = detect_scratches(scr)
