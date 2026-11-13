@@ -6,3 +6,8 @@
 !/README.md
 !/LICENSE
 !/docs/
+!/src/
+!/requirements.txt
+
+# never upload
+__pycache__/
