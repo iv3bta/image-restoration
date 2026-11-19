@@ -22,16 +22,16 @@ def load_model(weights):
                       num_refinement_blocks=4, heads=[1, 2, 4, 8], ffn_expansion_factor=2.66,
                       bias=False, LayerNorm_type="BiasFree", dual_pixel_task=False)
     model.load_state_dict(torch.load(weights, map_location="cpu")["params"])
-    return model.eval()
+    return model.eval().to("cuda" if torch.cuda.is_available() else "cpu")
 
 
 @torch.no_grad()
 def denoise(model, noisy):
     # noisy: float image in [0, 1] (may go outside because noise is not clipped)
-    x = torch.from_numpy(noisy).float()[None, None]
+    x = torch.from_numpy(noisy).float()[None, None].to(next(model.parameters()).device)
     h, w = noisy.shape
     x = F.pad(x, (0, (8 - w % 8) % 8, 0, (8 - h % 8) % 8), "reflect")  # size must be a multiple of 8
-    out = model(x)[0, 0, :h, :w].clamp(0, 1).numpy()
+    out = model(x)[0, 0, :h, :w].clamp(0, 1).cpu().numpy()
     return np.round(out * 255).astype(np.uint8)
 
 
