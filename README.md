@@ -58,15 +58,15 @@ Analysis of similar articles / applications / projects from the last 5 years.
 
 ### Components
 
-- **Damaged image** – input: a real damaged photo, or a clean image damaged by the generator.
-- **1. Denoising** – removes noise first (median filter for salt & pepper; bilateral / NL-means for Gaussian noise).
-- **2. Damage mask detection** – builds the binary mask of damaged pixels (scratches via white top-hat + threshold; missing regions as missing pixels).
-- **3. Inpainting** – fills the masked pixels from their surroundings (OpenCV TELEA or Navier-Stokes).
-- **4. Deblurring** – reverses blur with Wiener deconvolution, using a known or estimated blur kernel (PSF).
-- **Restored image** – output of the pipeline.
+- **Damaged image** – input of both branches: a real damaged photo, or a clean image damaged by the generator.
+- **1. Denoising** – removes noise first (median filter for salt & pepper; NL-means for Gaussian noise, with the filter strength set from the estimated noise level).
+- **2. Damage mask detection** – builds the binary mask of damaged pixels (scratches: white top-hat + threshold, kept only on straight Hough lines; missing regions: large dark connected areas).
+- **3. Inpainting** – fills the masked pixels from their surroundings (OpenCV TELEA; Navier-Stokes is also compared in the evaluation).
+- **4. Deblurring** – reverses blur with Wiener deconvolution (borders mirrored to avoid edge stripes), using a known or estimated blur kernel (PSF).
+- **Restored image** – output of each branch.
 - **5. Evaluation** – PSNR and SSIM against the clean original when one exists; no-reference metrics (NIQE / BRISQUE) and visual inspection for real photos.
 - **Synthetic damage generator** – adds noise, blur, scratches and holes to clean images with a fixed seed, so results can be measured and reproduced.
-- **Learned branch** – the same damaged image goes through the pretrained Restormer and through the Restormer fine-tuned on our damage; all three outputs are compared with the same metrics.
+- **Learned branch** – the same damaged image goes through Restormer (Transformer U-Net, 26.1 M parameters), first with the authors' pretrained weights (noise only), then with the weights fine-tuned on our damage (DIV2K + 30 film scans, random damage, L1 loss, GPU in Google Colab); the classic, pretrained and fine-tuned outputs are compared with the same metrics.
 
 ## Results
 
