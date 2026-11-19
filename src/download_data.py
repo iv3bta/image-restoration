@@ -55,21 +55,29 @@ def film_scans():
     print(f"film_scans: {len(files)} files")
 
 
-def div2k():
-    # 100 clean high-resolution images for training (DIV2K validation set, academic use)
-    folder = DATA / "DIV2K_valid_HR"
-    if folder.exists() and len(list(folder.glob("*.png"))) == 100:
-        print("DIV2K_valid_HR: 100 files")
+def div2k_zip(name, count, size):
+    # clean high-resolution images for training (DIV2K, academic use)
+    folder = DATA / name
+    if folder.exists() and len(list(folder.glob("*.png"))) == count:
+        print(f"{name}: {count} files")
         return
-    zip_path = DATA / "DIV2K_valid_HR.zip"
-    download("https://data.vision.ee.ethz.ch/cvl/DIV2K/DIV2K_valid_HR.zip", zip_path, 448993893)
+    zip_path = DATA / f"{name}.zip"
+    download(f"https://data.vision.ee.ethz.ch/cvl/DIV2K/{name}.zip", zip_path, size)
     with zipfile.ZipFile(zip_path) as z:
         z.extractall(DATA)
     zip_path.unlink()
-    print(f"DIV2K_valid_HR: {len(list(folder.glob('*.png')))} files")
+    print(f"{name}: {len(list(folder.glob('*.png')))} files")
 
 
-DATASETS = {"bsd68": bsd68, "old_photos": old_photos, "film_scans": film_scans, "div2k": div2k}
+def div2k():
+    div2k_zip("DIV2K_valid_HR", 100, 448993893)  # validation set, 100 images
+
+
+def div2k_train():
+    div2k_zip("DIV2K_train_HR", 800, 3530603713)  # training set, 800 images (~3.5 GB)
+
+
+DATASETS = {"bsd68": bsd68, "old_photos": old_photos, "film_scans": film_scans, "div2k": div2k, "div2k_train": div2k_train}
 
 if __name__ == "__main__":
     for name in sys.argv[1:] or DATASETS:

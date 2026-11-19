@@ -66,7 +66,8 @@ def main():
     p.add_argument("--batch", type=int, default=4)
     p.add_argument("--patch", type=int, default=128)
     p.add_argument("--lr", type=float, default=1e-4)
-    p.add_argument("--clean-dir", default=ROOT / "data/DIV2K_valid_HR")
+    p.add_argument("--clean-dir", nargs="+", default=[ROOT / "data/DIV2K_train_HR", ROOT / "data/DIV2K_valid_HR"],
+                   help="folders with clean images (missing folders are skipped)")
     p.add_argument("--film-train", type=int, default=30, help="film scans used for training (rest kept for testing)")
     p.add_argument("--out", default=ROOT / "models/restormer_finetuned.pth")
     args = p.parse_args()
@@ -75,7 +76,7 @@ def main():
     rng = np.random.default_rng(0)
     torch.manual_seed(0)
 
-    clean_images = [load_gray(f, 0.5) for f in sorted(Path(args.clean_dir).glob("*.png"))]
+    clean_images = [load_gray(f, 0.5) for d in args.clean_dir for f in sorted(Path(d).glob("*.png"))]
     damaged_files = sorted((ROOT / "data/film_scans/damaged").glob("*.jpg"))[:args.film_train]
     film_pairs = [[load_gray(f, 0.5), load_gray(f.parent.parent / "restored" / f.name.replace(".jpg", "_restored.jpg"), 0.5)]
                   for f in damaged_files]
