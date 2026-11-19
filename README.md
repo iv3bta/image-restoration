@@ -59,3 +59,9 @@ Analysis of similar articles / applications / projects from the last 5 years.
 - **Restored image** – output of the pipeline.
 - **5. Evaluation** – PSNR and SSIM against the clean original when one exists; no-reference metrics (NIQE / BRISQUE) and visual inspection for real photos.
 - **Synthetic damage generator** – adds noise, blur, scratches and holes to clean images with a fixed seed, so results can be measured and reproduced.
+
+## Demo
+
+Screen recording (4:54) of the pretrained Restormer running on BSD68 images with Gaussian noise (PSNR before / after) and on real old photos: [docs/demo_restormer.mp4](docs/demo_restormer.mp4).
+
+Intermediate presentation (PDF): [docs/presentation.pdf](docs/presentation.pdf).
